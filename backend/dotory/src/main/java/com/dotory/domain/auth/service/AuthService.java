@@ -1,5 +1,8 @@
 package com.dotory.domain.auth.service;
 
+import com.dotory.common.exception.ApiException;
+import com.dotory.common.exception.errorcode.AuthErrorCode;
+import com.dotory.common.exception.errorcode.UserErrorCode;
 import com.dotory.domain.auth.dto.response.LoginResponse;
 import com.dotory.domain.auth.jwt.JwtProvider;
 import com.dotory.domain.user.entity.User;
@@ -38,7 +41,7 @@ public class AuthService {
 
     public void logout(String accessToken) {
         if (!jwtProvider.validateToken(accessToken)) {
-            throw new IllegalArgumentException("유효하지 않은 Access Token입니다.");
+            throw new ApiException(AuthErrorCode.INVALID_ACCESS_TOKEN);
         }
 
         long remainingTime = jwtProvider.getRemainingExpirationTime(accessToken);
@@ -50,7 +53,7 @@ public class AuthService {
 
     public LoginResponse refresh(String refreshToken) {
         if (!jwtProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("유효하지 않은 Refresh Token입니다.");
+            throw new ApiException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         UUID userId = jwtProvider.getUserId(refreshToken);
@@ -58,7 +61,7 @@ public class AuthService {
         validateRefreshToken(refreshToken, userId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ApiException(UserErrorCode.USER_NOT_FOUND));
 
         String newAccessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
 
@@ -69,7 +72,7 @@ public class AuthService {
         String savedToken = redisTemplate.opsForValue().get(REFRESH_TOKEN + userId);
 
         if (ObjectUtils.isEmpty(savedToken) || !savedToken.equals(refreshToken)) {
-            throw new IllegalArgumentException("만료되었거나 일치하지 않는 Refresh Token입니다.");
+            throw new ApiException(AuthErrorCode.TIMEOUT_REFRESH_TOKEN);
         }
     }
 
