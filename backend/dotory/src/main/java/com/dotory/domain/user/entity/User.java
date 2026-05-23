@@ -37,6 +37,7 @@ public class User {
     @Builder
     private User(String email, String nickname, String profileImageUrl,
                  SocialProvider provider, String providerId) {
+        this.role = UserRole.USER;
         this.email = email;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
@@ -47,12 +48,14 @@ public class User {
     public static User createSocialUser(
             String email,
             String nickname,
+            String profileImageUrl,
             SocialProvider provider,
             String providerId
     ) {
         return User.builder()
                 .email(email)
                 .nickname(nickname)
+                .profileImageUrl(profileImageUrl)
                 .provider(provider)
                 .providerId(providerId)
                 .build();

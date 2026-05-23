@@ -46,7 +46,7 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/actuator/health",
-                                "/api/v1/auth/**"
+                                "/auth/**"
                         )
                         .permitAll() // Swagger 허용
                         .anyRequest().authenticated() // 그 외 모든 API는 인증 필요
