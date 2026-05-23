@@ -4,11 +4,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.validator.constraints.UUID;
+import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Getter
@@ -16,6 +17,7 @@ import org.hibernate.validator.constraints.UUID;
 public class User {
 
     @Id
+    @UuidGenerator
     private UUID id;
 
     private String email;

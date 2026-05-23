@@ -7,3 +7,9 @@ spring:
 server:
   servlet:
     context-path: /api/v1
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration: ${JWT_ACCESS_EXPIRATION}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
