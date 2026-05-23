@@ -20,6 +20,9 @@ public class User {
     @UuidGenerator
     private UUID id;
 
+    @Enumerated(EnumType.STRING)
+    private UserRole role;
+
     private String email;
 
     private String nickname;
