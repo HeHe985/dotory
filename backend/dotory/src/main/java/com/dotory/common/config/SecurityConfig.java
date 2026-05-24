@@ -1,14 +1,21 @@
 package com.dotory.common.config;
 
+import com.dotory.domain.auth.jwt.JwtAuthenticationFilter;
+import com.dotory.domain.auth.jwt.JwtProvider;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -16,7 +23,17 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final JwtProvider jwtProvider;
+    private final StringRedisTemplate redisTemplate;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(); // 비밀번호 단방향 해시 암호화
+    }
+
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -32,10 +49,21 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // URL 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/actuator/health",
+                                "/auth/**",
+                                "/user/**"
+                        )
                         .permitAll() // Swagger 허용
-                        .anyRequest().permitAll() // 그 외 모든 API는 인증 필요
-                );
+                        .anyRequest().authenticated() // 그 외 모든 API는 인증 필요
+                )
+
+                // JWT 필터를 UsernamePasswordAuthenticationFilter 전에 추가
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, redisTemplate),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -49,7 +77,8 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "http://localhost:8081"
         ));
         config.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")); // OPTIONS는 Preflight용으로 필수
@@ -61,5 +90,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", config); // 모든 API 경로에 적용
         return source;
     }
-
 }
