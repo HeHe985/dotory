@@ -97,5 +97,4 @@ public class JwtProvider {
     public long getRefreshExpiration() {
         return refreshExpiration;
     }
-
 }
