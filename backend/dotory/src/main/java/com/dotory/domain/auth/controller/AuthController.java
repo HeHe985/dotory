@@ -13,9 +13,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -76,4 +78,18 @@ public class AuthController {
         return null;
     }
 
+    @Operation(summary = "카카오 로그인 URL 조회")
+    @SecurityRequirements()
+    @GetMapping("/kakao/login")
+    public ResponseEntity<ApiResponse<String>> kakaoLoginUrl() {
+        return ResponseEntity.ok(ApiResponse.success(authService.getKakaoLoginUrl()));
+    }
+
+    @Operation(summary = "카카오 로그인 콜백")
+    @SecurityRequirements()
+    @GetMapping("/kakao/callback")
+    public ResponseEntity<ApiResponse<LoginResponse>> kakaoCallback(@RequestParam String code) {
+        LoginResponse response = authService.kakaoLogin(code);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

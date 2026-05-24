@@ -3,8 +3,10 @@ package com.dotory.domain.auth.service;
 import com.dotory.common.exception.ApiException;
 import com.dotory.common.exception.errorcode.AuthErrorCode;
 import com.dotory.common.exception.errorcode.UserErrorCode;
+import com.dotory.domain.auth.dto.response.KakaoLoginResponse;
 import com.dotory.domain.auth.dto.response.LoginResponse;
 import com.dotory.domain.auth.jwt.JwtProvider;
+import com.dotory.domain.user.entity.SocialProvider;
 import com.dotory.domain.user.entity.User;
 import com.dotory.domain.user.repository.UserRepository;
 import java.util.UUID;
@@ -24,6 +26,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
+    private final KakaoAuthService kakaoAuthService;
+    public static final String KAKAO_ACCESS_TOKEN = "KakaoAccessToken:";
 
     public static final String REFRESH_TOKEN = "RefreshToken:";
     public static final String LOGOUT = "logout";
@@ -54,6 +58,23 @@ public class AuthService {
             throw new ApiException(AuthErrorCode.INVALID_ACCESS_TOKEN);
         }
 
+        UUID userId = jwtProvider.getUserId(token);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(UserErrorCode.USER_NOT_FOUND));
+
+        if (user.getProvider() == SocialProvider.KAKAO) {
+            String kakaoAccessToken = redisTemplate.opsForValue().get(KAKAO_ACCESS_TOKEN + userId);
+
+            // 카카오 로그인 유저
+            if (!ObjectUtils.isEmpty(kakaoAccessToken)) {
+                kakaoAuthService.logout(kakaoAccessToken);
+                redisTemplate.delete(KAKAO_ACCESS_TOKEN + userId);
+            }
+        }
+
+        redisTemplate.delete(REFRESH_TOKEN + userId);
+
         // 2. 토큰의 남은 만료 시간 계산
         long remainingTime = jwtProvider.getRemainingExpirationTime(token);
 
@@ -63,7 +84,7 @@ public class AuthService {
         }
     }
 
-    // 💡 2. 토큰 재발급(Refresh) 로직 추가
+    // 2. 토큰 재발급(Refresh) 로직 추가
     public LoginResponse refresh(String refreshToken) {
         // 1. 넘어온 Refresh Token 자체의 유효성 검증
         if (!jwtProvider.validateToken(refreshToken)) {
@@ -109,4 +130,27 @@ public class AuthService {
         );
     }
 
+    public String getKakaoLoginUrl() {
+        return kakaoAuthService.getKakaoLoginUrl();
+    }
+
+    @Transactional
+    public LoginResponse kakaoLogin(String code) {
+        KakaoLoginResponse result = kakaoAuthService.loginOrSignup(code);
+
+        User user = result.getUser();
+
+        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole().name());
+        String refreshToken = jwtProvider.createRefreshToken(user.getId());
+
+        setInRedis(REFRESH_TOKEN + user.getId(), refreshToken, jwtProvider.getRefreshExpiration());
+
+        setInRedis(
+                KAKAO_ACCESS_TOKEN + user.getId(),
+                result.getKakaoAccessToken(),
+                jwtProvider.getRefreshExpiration()
+        );
+
+        return new LoginResponse(accessToken, refreshToken);
+    }
 }
